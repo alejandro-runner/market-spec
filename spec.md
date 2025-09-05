@@ -714,14 +714,14 @@ Sent by buyer to confirm payment completion. The receipt can include proof of pa
    - Include timestamps for all updates
    - Provide clear user messages
 
-## 5. Product Reviews (Kind: 31555)
+## 5. Reviews (Kind: 31555)
 
-Product reviews follow [NIP-85](https://github.com/nostr-protocol/nips/blob/b1432b705f553bde6c4eb5fcfde8525d2913b477/85.md) and [QTS](https://habla.news/u/arkinox@arkinox.tech/DLAfzJJpQDS4vj3wSleum) guidelines with additional marketplace-specific rating criteria. Reviews provide structured feedback about products, merchants, and the overall purchase experience.
+Reviews follow [NIP-85](https://github.com/nostr-protocol/nips/blob/b1432b705f553bde6c4eb5fcfde8525d2913b477/85.md) and [QTS](https://habla.news/u/arkinox@arkinox.tech/DLAfzJJpQDS4vj3wSleum) guidelines with additional marketplace-specific rating criteria. Reviews provide structured feedback about products, merchants, and the overall purchase experience.
 
 **Content:** Detailed review text
 
 **Required tags:**
-- `d`: Reference to product `["d", "a:30402:<merchant-pubkey>:<product-d-tag>"]`
+- `d`: Reference to product `["d", "a:30402:<merchant-pubkey>:<product-d-tag>"]` or merchant `["p", "<merchant-pubkey>"]`
 - `rating`: Primary rating `["rating", "<score>", "thumb"]`
   - score: 0 (negative) to 1 (positive)
   - "thumb" label MUST be present as primary rating
@@ -736,6 +736,8 @@ Product reviews follow [NIP-85](https://github.com/nostr-protocol/nips/blob/b143
       - "delivery": Shipping experience
       - "communication": Merchant responsiveness
 
+Product review 
+
 ```jsonc
 {
   "kind": 31555,
@@ -743,6 +745,26 @@ Product reviews follow [NIP-85](https://github.com/nostr-protocol/nips/blob/b143
   "tags": [
     // Required tags
     ["d", "a:30402:<merchant-pubkey>:<product-d-tag>"],
+    ["rating", "1", "thumb"],  // Primary rating
+    
+    // Optional rating categories
+    ["rating", "0.8", "value"],
+    ["rating", "1.0", "quality"],
+    ["rating", "0.6", "delivery"],
+    ["rating", "0.9", "communication"]
+  ],
+  "content": "Detailed review text"
+}
+```
+
+Merchant review
+```jsonc
+{
+  "kind": 31555,
+  "created_at": <unix timestamp>,
+  "tags": [
+    // Required tags
+    ["d", "p:<merchant-pubkey>"],
     ["rating", "1", "thumb"],  // Primary rating
     
     // Optional rating categories
