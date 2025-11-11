@@ -721,7 +721,7 @@ Reviews follow [NIP-85](https://github.com/nostr-protocol/nips/blob/b1432b705f55
 **Content:** Detailed review text
 
 **Required tags:**
-- `d`: Reference to product `["d", "a:30402:<merchant-pubkey>:<product-d-tag>"]` or merchant `["p", "<merchant-pubkey>"]`
+- `d`: Reference to product `["d", "a:30402:<merchant-pubkey>:<product-d-tag>"]` or merchant `["p, <merchant-pubkey>"]`
 - `rating`: Primary rating `["rating", "<score>", "thumb"]`
   - score: 0 (negative) to 1 (positive)
   - "thumb" label MUST be present as primary rating
