@@ -184,11 +184,14 @@ The [private structured commerce messages](https://github.com/OpenMarketsFoundat
 
 ```jsonc
 {
+  "buyer": "<customer pubkey>",
+  "merchant": "<merchant pubkey>",
   "items": [
-    { "line_id": "a1…", "listing": { "coordinate": "30402:<merchant>:latte-16-oz", "event_id": "…" }, "quantity": "1", "unit": "item", "amount": "5.00" },
-    { "line_id": "b2…", "listing": { "coordinate": "30402:<merchant>:oat-milk",    "event_id": "…" }, "quantity": "1", "unit": "item", "amount": "0.60" },
-    { "line_id": "c3…", "listing": { "coordinate": "30402:<merchant>:syrup-vanilla","event_id": "…" }, "quantity": "2", "unit": "item", "amount": "1.00" }
+    { "line_id": "a1…", "listing": { "coordinate": "30402:<merchant>:latte-16-oz",    "event_id": "…" }, "quantity": "1", "unit": "item", "amount": { "value": "5.00", "unit": "USD" } },
+    { "line_id": "b2…", "listing": { "coordinate": "30402:<merchant>:oat-milk",       "event_id": "…" }, "quantity": "1", "unit": "item", "amount": { "value": "0.60", "unit": "USD" } },
+    { "line_id": "c3…", "listing": { "coordinate": "30402:<merchant>:syrup-vanilla",  "event_id": "…" }, "quantity": "2", "unit": "item", "amount": { "value": "1.00", "unit": "USD" } }
   ],
+  "total": { "value": "6.60", "unit": "USD" },
   "extensions": {
     "openmarkets:add_ons": { "b2…": "a1…", "c3…": "a1…" }
   },
