@@ -46,8 +46,8 @@ This repository builds on and preserves links to the current Nostr commerce desi
 
 ## Active Proposals
 
-- [Product Add-ons and Variation Details](proposals/add-ons.md) proposes
-  add-on groups (`select` on a `kind:30405`, `add_on` on a product) and an
+- [Product Modifiers and Variation Details](proposals/modifiers.md) proposes
+  modifier groups (`select` on a `kind:30405`, `modifier_group` on a product) and an
   order-line link, and states three readings of the `variable` / `variation`
   text where it is silent.
 

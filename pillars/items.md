@@ -4,7 +4,7 @@ Status: normative transposition of current listing, collection, draft, and revie
 
 This file copies the implementation-sensitive item sections from [../SPEC.md](../SPEC.md). Do not change kind numbers, tag names, tag shapes, required/optional semantics, examples, or normative keywords in this transposition.
 
-Experimental proposal: [Product Add-ons and Variation Details](../proposals/add-ons.md). This proposal is not current normative behavior.
+Experimental proposal: [Product Modifiers and Variation Details](../proposals/modifiers.md). This proposal is not current normative behavior.
 
 ### Product Listing (Kind: 30402)
 
