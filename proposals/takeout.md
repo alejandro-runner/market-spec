@@ -28,13 +28,16 @@ Synvya runs takeout on this design for restaurants today. The example below is a
 
 ## The `openmarkets:takeout` entry
 
-The entry appears inside `extensions` on three message types. A message that carries it lists it in `requires`, because a reader that cannot understand the entry cannot act on the order correctly: it would not know when the food is ready or what code to give.
+The entry appears inside `extensions` on four message types.
 
-| Message | Author | Fields in `openmarkets:takeout` |
-|---|---|---|
-| `order` | customer | `pickup_at` (optional) |
-| `order_accepted` | merchant | `ready_at`, `tzid`, `code` |
-| `order_cancelled` | merchant | `unavailable` (optional) |
+| Message | Author | Fields in `openmarkets:takeout` | In `requires`? |
+|---|---|---|---|
+| `order` | customer | `pickup_at` | Yes, when present |
+| `order_accepted` | merchant | `ready_at`, `tzid`, `code`, `pay_at_pickup` | Only if the order required the entry |
+| `order_cancelled` | merchant | `unavailable` | Only if the order required the entry |
+| `fulfillment_update` | merchant | `ready_at`, `tzid`, `code` (a revised time) | Only if the order required the entry |
+
+**When the entry is required, and when it is not.** The envelope's rule is that `requires` names only what a reader needs to understand the action, and that a reader refuses a message whose `requires` names something it does not know. A customer who asks for a pickup time needs the merchant to honour it or decline, so `pickup_at` is required. An acceptance is understood without a ready time, and a decline without the line list, so on the merchant's messages the entry is optional unless the customer's order itself required it; then the customer's client has shown it knows the entry, and the merchant may require it back. A merchant also writes the ready time and the code into the message's `note` as prose, so a plain client that ignores the entry still shows a usable acceptance.
 
 Every time is a whole number of seconds since the Unix epoch. `tzid` is an IANA timezone name, so a client can show the time as the merchant's wall clock.
 
@@ -47,35 +50,41 @@ Every time is a whole number of seconds since the Unix epoch. `tzid` is an IANA 
 
 `pickup_at` is when the customer would like to collect. When it is absent, the customer wants the order as soon as possible. An order for pickup carries one delivery selection with `method` = `pickup` naming the merchant's pickup option; the entry adds only the time.
 
-A merchant that cannot honour the time (too soon, too far ahead, outside its hours) declines the order; it does not silently pick another time.
+Accepting an order that carries `pickup_at` means the order will be ready by that time: `ready_at` is not later than `pickup_at`. A merchant that cannot honour the time (too soon, too far ahead, outside its hours) declines the order with the reason `pickup_time`; it does not accept with a later time.
 
 ### On the acceptance
 
 ```jsonc
-"extensions": { "openmarkets:takeout": { "ready_at": 1791641700, "tzid": "America/Los_Angeles", "code": "JQE7" } },
-"requires": ["openmarkets:takeout"]
+"note": "Ready at 6:15 AM. Say JQE7 at the counter. Pay when you collect.",
+"extensions": { "openmarkets:takeout": { "ready_at": 1791638100, "tzid": "America/Los_Angeles", "code": "JQE7", "pay_at_pickup": true } }
 ```
 
-`ready_at` is when the order will be ready to collect. `code` is a short string, letters and digits, that the customer says at the counter so staff can match them to the bag; it is not a secret and proves nothing. A client shows the code large and the time in the merchant's zone.
+`ready_at` is when the order will be ready to collect. `code` is a string of 3 to 8 letters and digits that the customer says at the counter so staff can match them to the bag; it is not a secret and proves nothing. A client shows the code large and the time in the merchant's zone.
+
+`pay_at_pickup` says whether the customer pays when collecting. `true` means no payment message will follow. `false` means the merchant wants payment first and will send a `payment_request`; the customer's client waits for it. The field exists so that a client never has to guess from silence whether a request is still coming.
 
 ### On a decline
 
 ```jsonc
 "reason": "out_of_stock",
 "refund_required": false,
-"extensions": { "openmarkets:takeout": { "unavailable": ["b2…", "c3…"] } },
-"requires": ["openmarkets:takeout"]
+"note": "Oat milk and vanilla syrup are sold out today.",
+"extensions": { "openmarkets:takeout": { "unavailable": ["b2…", "c3…"] } }
 ```
 
-`unavailable` lists the `line_id`s of the lines the merchant could not fill. A client uses it to let the customer fix the order and send it again, instead of guessing. It is present only when the decline is for stock; a decline for any other reason carries no entry.
+The envelope leaves `reason` as a free lowercase string. This proposal defines two values: `out_of_stock`, which goes with `unavailable`, and `pickup_time`, for a requested time the merchant cannot honour. `unavailable` lists the `line_id`s of the lines the merchant could not fill, so a client can let the customer fix the order and send it again instead of guessing. It appears only with the reason `out_of_stock`.
+
+### On a progress update
+
+A café running late revises the time on a `fulfillment_update` with state `processing`, carrying `ready_at`, `tzid` and `code` in the same entry. A client replaces the time it shows; the code is repeated so the message stands on its own. This is also how a merchant gives the code on an order that had no acceptance of its own, such as a repeat delivery of a standing order.
 
 ## Paying at the counter
 
-The envelope's rule is that a merchant that wants payment sends a `payment_request`. For takeout paid at collection, the merchant sends none. A client treats an accepted order with no payment request as "pay when you collect". No field says this; the absence does. A merchant that wants prepayment uses the payment messages unchanged.
+The envelope's rule is that a merchant that wants payment sends a `payment_request`. For takeout paid at collection, the merchant sends none and says so with `pay_at_pickup: true` on the acceptance. A merchant that wants prepayment sets it to `false` and sends the request; the customer's client knows to wait for it. The payment messages themselves are unchanged.
 
 ## Advertising support
 
-A merchant that accepts takeout orders lists the entry in its capability object, so a client knows it may send `pickup_at` and will understand the answer:
+A merchant that accepts takeout orders lists the entry in its capability object. Under the envelope's rule that is a statement about what the merchant will receive: a client that sees it knows it may send `pickup_at`. It says nothing about what the customer's client can read, which is why a merchant requires the entry on its answer only when the order required it.
 
 ```json
 "versions": [{ "version": "1", "receive": ["order", "order_cancel_requested"], "extensions": ["openmarkets:takeout"] }]
@@ -103,20 +112,21 @@ A customer orders a 12 oz latte with oat milk and two pumps of vanilla, as soon 
 // order_accepted (café → customer), content
 {
   "order_operation": "<order rumor id>",
-  "extensions": { "openmarkets:takeout": { "ready_at": 1791640500, "tzid": "America/Los_Angeles", "code": "JQE7" } },
-  "requires": ["openmarkets:takeout"]
+  "note": "Ready at 6:15 AM tomorrow. Say JQE7 at the counter. Pay when you collect.",
+  "extensions": { "openmarkets:takeout": { "ready_at": 1791638100, "tzid": "America/Los_Angeles", "code": "JQE7", "pay_at_pickup": true } }
 }
 ```
 
-The customer's screen shows "Ready at 6:15 AM tomorrow", the code JQE7, and "pay at the counter", because no payment request followed.
+The customer's screen shows "Ready at 6:15 AM tomorrow", the code JQE7, and "pay at the counter". A client that does not know the entry shows the note, which says the same.
 
 ## Compatibility
 
 - The entry is an `extensions` entry under the envelope's own rules; nothing in the base messages changes.
 - A merchant that does not list `openmarkets:takeout` in its capabilities is not asked for a pickup time, and a client never sends the entry to it.
-- A client that does not know the entry refuses an acceptance that requires it, which is the envelope's rule for a required extension; it is better than showing an accepted order with no time and no code.
+- A client that does not know the entry still shows an acceptance, a decline or a progress update, because the merchant does not require the entry on them unless the order did, and the `note` carries the time and the code as prose.
 
 ## Open questions
 
 - Whether `code` should be optional for merchants that match orders by name alone.
+- Whether `pay_at_pickup` belongs here or in a general payment-terms entry that other kinds of order would share.
 - Whether a merchant should be able to answer a `pickup_at` it cannot honour with a counter-proposal, instead of a decline. This proposal keeps accept or decline only.
