@@ -105,8 +105,8 @@ A customer orders a 12 oz latte with oat milk and two pumps of vanilla, as soon 
   ],
   "total": { "value": "6.10", "unit": "USD" },
   "deliveries": [{ "delivery_id": "d4…", "line_ids": ["a1…", "b2…", "c3…"], "method": "pickup", "shipping_option": { "coordinate": "30406:<café>:pickup", "event_id": "…" } }],
-  "extensions": { "openmarkets:add_ons": { "b2…": "a1…", "c3…": "a1…" } },
-  "requires": ["openmarkets:add_ons"]
+  "extensions": { "openmarkets:modifiers": { "b2…": "a1…", "c3…": "a1…" } },
+  "requires": ["openmarkets:modifiers"]
 }
 
 // order_accepted (café → customer), content
