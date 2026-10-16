@@ -187,11 +187,11 @@ The [private structured commerce messages](https://github.com/OpenMarketsFoundat
   "buyer": "<customer pubkey>",
   "merchant": "<merchant pubkey>",
   "items": [
-    { "line_id": "a1…", "listing": { "coordinate": "30402:<merchant>:latte-16-oz",    "event_id": "…" }, "quantity": "1", "unit": "item", "amount": { "value": "5.00", "unit": "USD" } },
-    { "line_id": "b2…", "listing": { "coordinate": "30402:<merchant>:oat-milk",       "event_id": "…" }, "quantity": "1", "unit": "item", "amount": { "value": "0.60", "unit": "USD" } },
-    { "line_id": "c3…", "listing": { "coordinate": "30402:<merchant>:syrup-vanilla",  "event_id": "…" }, "quantity": "2", "unit": "item", "amount": { "value": "1.00", "unit": "USD" } }
+    { "line_id": "a1…", "listing": { "coordinate": "30402:<merchant>:latte-16-oz",    "event_id": "…" }, "quantity": "1", "unit": "item", "amount": { "value": "5", "unit": "USD" } },
+    { "line_id": "b2…", "listing": { "coordinate": "30402:<merchant>:oat-milk",       "event_id": "…" }, "quantity": "1", "unit": "item", "amount": { "value": "0.6", "unit": "USD" } },
+    { "line_id": "c3…", "listing": { "coordinate": "30402:<merchant>:syrup-vanilla",  "event_id": "…" }, "quantity": "2", "unit": "item", "amount": { "value": "1", "unit": "USD" } }
   ],
-  "total": { "value": "6.60", "unit": "USD" },
+  "total": { "value": "6.6", "unit": "USD" },
   "extensions": {
     "openmarkets:modifiers": { "b2…": "a1…", "c3…": "a1…" }
   },
@@ -201,7 +201,7 @@ The [private structured commerce messages](https://github.com/OpenMarketsFoundat
 
 Each key is the `line_id` of a modifier line and each value the `line_id` of the product line it belongs to. The entry is listed in `requires`, because a merchant that cannot read it cannot check the rules below or price the order as the customer meant it; under #12's rules an unknown required extension makes the order unsupported rather than silently accepted. A `line_id` survives a re-issued order (`supersedes`) where a position would not, which is why the link is an id here and a position only on the kind `16` tag, which has no ids.
 
-Synvya's running implementation writes its order line as a positional array, `[coord, price, quantity, total]`, with the link as an optional fifth value; that is the array form of the same rule, and it predates #12's object line. The `extensions` form above is what this proposal specifies for #12 and is not yet implemented anywhere.
+Synvya's implementation writes this form for takeout: object lines with a minted `line_id`, the `openmarkets:modifiers` entry above, and the entry listed in `requires`. It replaces an earlier positional line, `[coord, price, quantity, total]`, with the link as an optional fifth value, which predates #12's object line and is no longer written. The amounts above follow #12's money type, which allows no trailing zeros: `"5"`, not `"5.00"`; a product's `price` tag keeps its own format.
 
 ### What makes an order well formed
 
