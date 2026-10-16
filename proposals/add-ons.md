@@ -20,7 +20,7 @@ The first is a rule a collection can carry, the **`select` tag**, that says how 
 
 The second is the **add-on**: an ordinary product that is sold only together with another product. Add-ons are grouped into **add-on groups**, which are collections marked as such and carrying a `select` rule, and a product says which groups it accepts. An order line that names an add-on also says which line it belongs to.
 
-Everything added here is optional. A reader that knows nothing about this proposal still sees valid listings and a valid order with the right total. Synvya runs this design in production for restaurant takeout; the example below is a real coffee menu.
+Everything added here is optional. A reader that knows nothing about this proposal still sees valid listings and a valid order with the right total. Synvya runs the listings, the groups and the order-line link in production for restaurant takeout, on an order line written as a positional array; the `extensions` form given for the private commerce envelope is specified here and not yet implemented. The example below is a real coffee menu.
 
 ## Non-goals
 
@@ -87,7 +87,7 @@ This proposal uses `select` on add-on groups only. The tag is defined on its own
 
 ### The add-on product
 
-An add-on is an ordinary simple product. Its price is what it adds to the order, and a free choice has a price of `0`. It references the same shipping options as the products it goes with, so a merchant's fulfilment check works line by line without special cases. Its `a` tag names the add-on group it belongs to.
+An add-on is an ordinary simple product. Its price is what it adds to the order, in the same currency as the products it goes with, and a free choice has a price of `0`. It references the same shipping options as the products it goes with, so a merchant's fulfilment check works line by line without special cases. Its `a` tag names the add-on group it belongs to.
 
 ```jsonc
 {
@@ -143,13 +143,15 @@ This is the same pattern the specification already uses for shipping: a product 
 
 A parent and each of its variations carry the same `add_on` tags, so every listing a customer might order is complete on its own. If a product points at a group that cannot be found, a reader ignores that tag, and a merchant republishing the product keeps it.
 
+The two directions have one owner each. Whether a product accepts a group is decided by the product's own `add_on` tag, never by the group. Whether a product is an add-on is decided by the product's own `a` tag naming a group marked `add-on`; the group's member list gives the display order, and a member the group lists whose own `a` tag names a different collection is ignored. This keeps the specification's rule that nothing applies to a product unless the product itself points at it.
+
 ### What a reader shows
 
 A reader looks at each product and decides what it is:
 
 | Listing | How a reader can tell | Where it appears | Can it be ordered |
 |---|---|---|---|
-| Simple product | `type` is `simple`, and its collection is not marked `add-on` | On the menu | Yes |
+| Simple product | `type` is `simple`, and it is not listed by an add-on group | On the menu | Yes |
 | Parent | `type` is `variable` | On the menu, with its variations beneath it | No |
 | Variation | `type` is `variation`, and its `a` tag names a parent that exists | Under its parent | Yes |
 | Add-on | Its collection is marked `["type", "add-on"]` | As a choice on a product that accepts its group | Only together with a product |
@@ -178,15 +180,25 @@ That order is one 16 oz latte with oat milk and two pumps of vanilla, and one am
 
 ### On the private commerce envelope
 
-The [private structured commerce messages](https://github.com/OpenMarketsFoundation/specification/pull/12) proposal leaves the shape of an order line open. Where a line is written as `[coord, price, quantity, total]`, the link is an optional fifth value:
+The [private structured commerce messages](https://github.com/OpenMarketsFoundation/specification/pull/12) proposal gives every order line an immutable random `line_id`, allows no undeclared field on a line, and puts optional additions in a namespaced `extensions` object on the payload. So on that envelope the link is not a position but a `line_id`, carried in one extension entry that maps each add-on line to its product line:
 
 ```jsonc
-"order": [
-  ["30402:<merchant>:latte-16-oz",   "5.00", 1, "5.00"],
-  ["30402:<merchant>:oat-milk",      "0.60", 1, "0.60", 0],
-  ["30402:<merchant>:syrup-vanilla", "0.50", 2, "1.00", 0]
-]
+{
+  "items": [
+    { "line_id": "a1…", "listing": { "coordinate": "30402:<merchant>:latte-16-oz", "event_id": "…" }, "quantity": "1", "unit": "item", "amount": "5.00" },
+    { "line_id": "b2…", "listing": { "coordinate": "30402:<merchant>:oat-milk",    "event_id": "…" }, "quantity": "1", "unit": "item", "amount": "0.60" },
+    { "line_id": "c3…", "listing": { "coordinate": "30402:<merchant>:syrup-vanilla","event_id": "…" }, "quantity": "2", "unit": "item", "amount": "1.00" }
+  ],
+  "extensions": {
+    "openmarkets:add_ons": { "b2…": "a1…", "c3…": "a1…" }
+  },
+  "requires": ["openmarkets:add_ons"]
+}
 ```
+
+Each key is the `line_id` of an add-on line and each value the `line_id` of the product line it belongs to. The entry is listed in `requires`, because a merchant that cannot read it cannot check the rules below or price the order as the customer meant it; under #12's rules an unknown required extension makes the order unsupported rather than silently accepted. A `line_id` survives a re-issued order (`supersedes`) where a position would not, which is why the link is an id here and a position only on the kind `16` tag, which has no ids.
+
+Synvya's running implementation writes its order line as a positional array, `[coord, price, quantity, total]`, with the link as an optional fifth value; that is the array form of the same rule, and it predates #12's object line. The `extensions` form above is what this proposal specifies for #12 and is not yet implemented anywhere.
 
 ### What makes an order well formed
 
@@ -197,9 +209,9 @@ A merchant checks these before accepting:
 3. The link points at a product line, never at another add-on line.
 4. The product on that line accepts the add-on's group.
 5. The add-on's quantity is a whole multiple of the product line's quantity. Two lattes with one vanilla each is a latte line of quantity 2 and a vanilla line of quantity 2. Two lattes with different add-ons are two latte lines.
-6. For each group the product accepts, the number of add-ons picked from that group for one product stays within the group's `select` range.
+6. For each group the product accepts, the count for one product is within the group's `select` range. The count is the sum of the quantities of every add-on line from that group that links to the product line, divided by the product line's quantity (rule 5 makes that a whole number). A latte line of quantity 1 with a vanilla line of 2 and a caramel line of 1 from the same syrups group counts 3.
 
-A merchant that finds a line breaking one of these declines the order. Every line is priced at the merchant's own price for that product; nothing is computed from another line.
+A merchant that finds a line breaking one of these declines the order. A product whose required group (`min` of 1 or more) has no add-on that can be sold — every member sold out or missing — cannot be ordered at all, and a reader shows it that way rather than offering it without the choice. Every line is priced at the merchant's own price for that product; nothing is computed from another line.
 
 A reader that knows nothing about the link still sees every line as a product with a quantity, and the total is the same. The only thing it cannot tell is which product each add-on goes with.
 
